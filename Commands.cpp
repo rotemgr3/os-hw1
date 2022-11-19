@@ -78,9 +78,59 @@ void _removeBackgroundSign(char* cmd_line) {
 }
 
 // TODO: Add your implementation for classes in Commands.h 
+Command::Command(const char* cmd_line) : original_cmd_line(cmd_line),
+  cmd_line(cmd_line), args(), temp_args(), num_of_args(), is_background(false) {
+  prepare();
 
-SmallShell::SmallShell() {
-// TODO: add your implementation
+}
+
+void Command::cleanup() {
+  for (int i = 0; i < num_of_args; i++) {
+    free(temp_args[i]);
+    temp_args[i] = nullptr;
+  }
+  free(temp_args);
+  temp_args = nullptr;
+}
+
+void Command::prepare() {
+  if (_isBackgroundComamnd(cmd_line.c_str())) {
+    is_background = true;
+    char temp_cmd_line[COMMAND_ARGS_MAX_LENGTH + 1];
+    strcpy(temp_cmd_line, cmd_line.c_str());
+    _removeBackgroundSign(temp_cmd_line);
+    cmd_line = std::string(temp_cmd_line);
+  }
+  temp_args = (char **)malloc(sizeof(char*) * COMMAND_MAX_ARGS);
+  num_of_args = _parseCommandLine(cmd_line.c_str(), temp_args);
+  fillArgs();
+}
+
+void Command::fillArgs() {
+  for (int i = 0; i < num_of_args; i++) {
+    args.push_back(temp_args[i]);
+  }
+  cleanup();
+}
+
+BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line) {
+  is_background = false;
+}
+
+ChangePrompt::ChangePrompt(const char* cmd_line) : BuiltInCommand(cmd_line), title("smash") {
+  if (num_of_args < 2) return;
+  title = args[1];
+}
+
+void ChangePrompt::execute() {
+  SmallShell& smash = SmallShell::getInstance();
+  smash.changeTitle(title);
+}
+
+SmallShell::SmallShell() : title("smash"), job_list(), last_wd() {}
+
+void SmallShell::changeTitle(const string& title) {
+  this->title = title;
 }
 
 SmallShell::~SmallShell() {
@@ -91,23 +141,22 @@ SmallShell::~SmallShell() {
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
-	// For example:
-/*
+
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
-  if (firstWord.compare("pwd") == 0) {
-    return new GetCurrDirCommand(cmd_line);
+  if (firstWord.compare("chprompt") == 0) {
+    return new ChangePrompt(cmd_line);
   }
-  else if (firstWord.compare("showpid") == 0) {
-    return new ShowPidCommand(cmd_line);
-  }
-  else if ...
-  .....
-  else {
-    return new ExternalCommand(cmd_line);
-  }
-  */
+  // if (firstWord.compare("pwd") == 0) {
+  //   return new GetCurrDirCommand(cmd_line);
+  // }
+  // else if (firstWord.compare("showpid") == 0) {
+  //   return new ShowPidCommand(cmd_line);
+  // }
+  // else {
+  //   return new ExternalCommand(cmd_line);
+  // }
   return nullptr;
 }
 
@@ -117,4 +166,6 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // Command* cmd = CreateCommand(cmd_line);
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
+  Command* cmd = CreateCommand(cmd_line);
+  cmd->execute();
 }

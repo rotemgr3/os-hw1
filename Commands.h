@@ -7,13 +7,20 @@
 #define COMMAND_MAX_ARGS (20)
 
 class Command {
-// TODO: Add your data members
  public:
+  const std::string original_cmd_line;
+  std::string cmd_line;
+  std::vector<std::string> args;
+  char ** temp_args;
+  int num_of_args;
+  bool is_background;
+
   Command(const char* cmd_line);
-  virtual ~Command();
+  virtual ~Command() = default;
   virtual void execute() = 0;
-  //virtual void prepare();
-  //virtual void cleanup();
+  virtual void prepare();
+  virtual void cleanup();
+  virtual void fillArgs();
   // TODO: Add your extra methods if needed
 };
 
@@ -23,12 +30,12 @@ class BuiltInCommand : public Command {
   virtual ~BuiltInCommand() {}
 };
 
-class ExternalCommand : public Command {
- public:
-  ExternalCommand(const char* cmd_line);
-  virtual ~ExternalCommand() {}
-  void execute() override;
-};
+// class ExternalCommand : public Command {
+//  public:
+//   ExternalCommand(const char* cmd_line);
+//   virtual ~ExternalCommand() {}
+//   void execute() override;
+// };
 
 class PipeCommand : public Command {
   // TODO: Add your data members
@@ -48,6 +55,14 @@ class RedirectionCommand : public Command {
   //void cleanup() override;
 };
 
+class ChangePrompt : public BuiltInCommand {
+  public:
+    std::string title;
+    ChangePrompt(const char* cmd_line);
+    virtual ~ChangePrompt() {}
+    void execute() override;
+};
+
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members public:
   ChangeDirCommand(const char* cmd_line, char** plastPwd);
@@ -55,19 +70,19 @@ class ChangeDirCommand : public BuiltInCommand {
   void execute() override;
 };
 
-class GetCurrDirCommand : public BuiltInCommand {
- public:
-  GetCurrDirCommand(const char* cmd_line);
-  virtual ~GetCurrDirCommand() {}
-  void execute() override;
-};
+// class GetCurrDirCommand : public BuiltInCommand {
+//  public:
+//   GetCurrDirCommand(const char* cmd_line);
+//   virtual ~GetCurrDirCommand() {}
+//   void execute() override;
+// };
 
-class ShowPidCommand : public BuiltInCommand {
- public:
-  ShowPidCommand(const char* cmd_line);
-  virtual ~ShowPidCommand() {}
-  void execute() override;
-};
+// class ShowPidCommand : public BuiltInCommand {
+//  public:
+//   ShowPidCommand(const char* cmd_line);
+//   virtual ~ShowPidCommand() {}
+//   void execute() override;
+// };
 
 class JobsList;
 class QuitCommand : public BuiltInCommand {
@@ -86,8 +101,8 @@ class JobsList {
   };
  // TODO: Add your data members
  public:
-  JobsList();
-  ~JobsList();
+  JobsList() = default;
+  ~JobsList() = default;
   void addJob(Command* cmd, bool isStopped = false);
   void printJobsList();
   void killAllJobs();
@@ -161,7 +176,9 @@ class KillCommand : public BuiltInCommand {
 
 class SmallShell {
  private:
-  // TODO: Add your data members
+  std::string title;
+  JobsList job_list;
+  std::string last_wd;
   SmallShell();
  public:
   Command *CreateCommand(const char* cmd_line);
@@ -175,7 +192,8 @@ class SmallShell {
   }
   ~SmallShell();
   void executeCommand(const char* cmd_line);
-  // TODO: add extra methods as needed
+  void changeTitle(const std::string& title);
+  std::string getTitle() const { return title; }
 };
 
 #endif //SMASH_COMMAND_H_
