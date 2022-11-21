@@ -127,10 +127,49 @@ void ChangePrompt::execute() {
   smash.changeTitle(title);
 }
 
+void ShowPidCommand::execute() {
+  cout << "smash pid is " << getpid() << endl;
+}
+
+void GetCurrDirCommand::execute() {
+  char* cwd = getcwd(nullptr, 0);
+  cout << cwd << endl;
+  free(cwd);
+}
+
+void ChangeDirCommand::execute() {
+  char* cwd = getcwd(nullptr, 0);
+  SmallShell& smash = SmallShell::getInstance();
+
+  if (num_of_args > 2) {
+
+  }
+  if (args[1].compare("-") == 0) {
+    string new_wd = smash.getLastWD();
+    if (new_wd.empty()) {
+      perror("smash error: cd: OLDPWD not set");
+    }
+    if (chdir(new_wd.c_str()) != 0) {
+    perror("smash error: chdir failed");
+    }
+    smash.setLastWD(cwd);
+  }
+  if (chdir(args[1].c_str()) != 0) {
+    perror("smash error: chdir failed");
+  }
+
+  smash.setLastWD(cwd);
+  free(cwd);
+}
+
 SmallShell::SmallShell() : title("smash"), job_list(), last_wd() {}
 
 void SmallShell::changeTitle(const string& title) {
   this->title = title;
+}
+
+void SmallShell::setLastWD(char* new_lwd) {
+  this->last_wd = string(new_lwd);
 }
 
 SmallShell::~SmallShell() {
@@ -147,6 +186,12 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 
   if (firstWord.compare("chprompt") == 0) {
     return new ChangePrompt(cmd_line);
+  }
+  else if (firstWord.compare("showpid") == 0) {
+    return new ShowPidCommand(cmd_line);
+  }
+  else if (firstWord.compare("pwd") == 0) {
+    return new GetCurrDirCommand(cmd_line);
   }
   // if (firstWord.compare("pwd") == 0) {
   //   return new GetCurrDirCommand(cmd_line);

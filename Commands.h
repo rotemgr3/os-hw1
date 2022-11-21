@@ -64,25 +64,25 @@ class ChangePrompt : public BuiltInCommand {
 };
 
 class ChangeDirCommand : public BuiltInCommand {
-// TODO: Add your data members public:
-  ChangeDirCommand(const char* cmd_line, char** plastPwd);
+public:
+  ChangeDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
   virtual ~ChangeDirCommand() {}
   void execute() override;
 };
 
-// class GetCurrDirCommand : public BuiltInCommand {
-//  public:
-//   GetCurrDirCommand(const char* cmd_line);
-//   virtual ~GetCurrDirCommand() {}
-//   void execute() override;
-// };
+class GetCurrDirCommand : public BuiltInCommand {
+ public:
+  GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
+  virtual ~GetCurrDirCommand() = default;
+  void execute() override;
+};
 
-// class ShowPidCommand : public BuiltInCommand {
-//  public:
-//   ShowPidCommand(const char* cmd_line);
-//   virtual ~ShowPidCommand() {}
-//   void execute() override;
-// };
+class ShowPidCommand : public BuiltInCommand {
+ public:
+  ShowPidCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
+  virtual ~ShowPidCommand() = default;
+  void execute() override;
+};
 
 class JobsList;
 class QuitCommand : public BuiltInCommand {
@@ -194,6 +194,8 @@ class SmallShell {
   void executeCommand(const char* cmd_line);
   void changeTitle(const std::string& title);
   std::string getTitle() const { return title; }
+  std::string getLastWD() const { return last_wd; }
+  void setLastWD(char* new_lwd);
 };
 
 #endif //SMASH_COMMAND_H_
