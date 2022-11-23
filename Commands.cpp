@@ -79,18 +79,17 @@ void _removeBackgroundSign(char* cmd_line) {
 
 // TODO: Add your implementation for classes in Commands.h 
 Command::Command(const char* cmd_line) : original_cmd_line(cmd_line),
-  cmd_line(cmd_line), args(), temp_args(), num_of_args(), is_background(false) {
+  cmd_line(cmd_line), args(), num_of_args(), is_background(false) {
   prepare();
-
 }
 
-void Command::cleanup() {
+Command::~Command() {
   for (int i = 0; i < num_of_args; i++) {
-    free(temp_args[i]);
-    temp_args[i] = nullptr;
+    free(args[i]);
+    args[i] = nullptr;
   }
-  free(temp_args);
-  temp_args = nullptr;
+  free(args);
+  args = nullptr;
 }
 
 void Command::prepare() {
@@ -101,16 +100,8 @@ void Command::prepare() {
     _removeBackgroundSign(temp_cmd_line);
     cmd_line = std::string(temp_cmd_line);
   }
-  temp_args = (char **)malloc(sizeof(char*) * COMMAND_MAX_ARGS);
-  num_of_args = _parseCommandLine(cmd_line.c_str(), temp_args);
-  fillArgs();
-}
-
-void Command::fillArgs() {
-  for (int i = 0; i < num_of_args; i++) {
-    args.push_back(temp_args[i]);
-  }
-  cleanup();
+  args = (char **)malloc(sizeof(char*) * COMMAND_MAX_ARGS);
+  num_of_args = _parseCommandLine(cmd_line.c_str(), args);
 }
 
 BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line) {
@@ -144,7 +135,7 @@ void ChangeDirCommand::execute() {
   if (num_of_args > 2) {
 
   }
-  if (args[1].compare("-") == 0) {
+  if (strcmp(args[1], "-") == 0) {
     string new_wd = smash.getLastWD();
     if (new_wd.empty()) {
       perror("smash error: cd: OLDPWD not set");
@@ -154,7 +145,7 @@ void ChangeDirCommand::execute() {
     }
     smash.setLastWD(cwd);
   }
-  if (chdir(args[1].c_str()) != 0) {
+  if (chdir(args[1]) != 0) {
     perror("smash error: chdir failed");
   }
 

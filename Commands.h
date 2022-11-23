@@ -10,17 +10,15 @@ class Command {
  public:
   const std::string original_cmd_line;
   std::string cmd_line;
-  std::vector<std::string> args;
-  char ** temp_args;
+  char ** args;
   int num_of_args;
   bool is_background;
 
   Command(const char* cmd_line);
-  virtual ~Command() = default;
+  virtual ~Command();
   virtual void execute() = 0;
   virtual void prepare();
-  virtual void cleanup();
-  virtual void fillArgs();
+  // virtual void cleanup();
   // TODO: Add your extra methods if needed
 };
 
