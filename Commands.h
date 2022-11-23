@@ -2,6 +2,7 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
+#include <time.h>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -19,7 +20,6 @@ class Command {
   virtual void execute() = 0;
   virtual void prepare();
   // virtual void cleanup();
-  // TODO: Add your extra methods if needed
 };
 
 class BuiltInCommand : public Command {
@@ -28,12 +28,13 @@ class BuiltInCommand : public Command {
   virtual ~BuiltInCommand() {}
 };
 
-// class ExternalCommand : public Command {
-//  public:
-//   ExternalCommand(const char* cmd_line);
-//   virtual ~ExternalCommand() {}
-//   void execute() override;
-// };
+class ExternalCommand : public Command {
+ public:
+  bool is_complex;
+  ExternalCommand(const char* cmd_line);
+  virtual ~ExternalCommand() {}
+  void execute() override;
+};
 
 class PipeCommand : public Command {
   // TODO: Add your data members
@@ -95,13 +96,20 @@ public:
 class JobsList {
  public:
   class JobEntry {
-   // TODO: Add your data members
+    public:
+      int job_id;
+      Command* cmd;
+      int pid;
+      time_t time_started;
+      bool is_stopped;
+      JobEntry(int job_id, Command* cmd, int pid) : job_id(job_id), cmd(cmd), pid(pid), time_started(time(0)), is_stopped(false) {}
+      JobEntry(const JobEntry &job_entry) = default;
+      ~JobEntry() = default;
   };
- // TODO: Add your data members
- public:
+  std::vector<JobEntry> jobs;
   JobsList() = default;
   ~JobsList() = default;
-  void addJob(Command* cmd, bool isStopped = false);
+  void addJob(Command* cmd, int pid, bool isStopped = false);
   void printJobsList();
   void killAllJobs();
   void removeFinishedJobs();

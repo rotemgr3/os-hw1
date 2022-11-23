@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
+#include  <algorithm>
 
 using namespace std;
 
@@ -108,6 +109,27 @@ BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line) {
   is_background = false;
 }
 
+ExternalCommand::ExternalCommand(const char* cmd_line) : Command(cmd_line), is_complex(false) {
+  if (this->cmd_line.find('*') != std::string::npos || this->cmd_line.find('?') != std::string::npos) {
+    is_complex = true;
+  }
+}
+
+void ExternalCommand::execute() {
+  if (is_complex){
+    char cmd_line_copy[201];
+    strcpy(cmd_line_copy, cmd_line.c_str());
+    char* ext_cmd[2];
+    ext_cmd[0] = strdup("-c");
+    ext_cmd[1] = cmd_line_copy;
+    execv("/bin/bash", ext_cmd);
+  }
+  else{
+    string command = "/bin/" + string(this->args[0]);
+    execv(command.c_str(), args);
+  }
+}
+
 ChangePrompt::ChangePrompt(const char* cmd_line) : BuiltInCommand(cmd_line), title("smash") {
   if (num_of_args < 2) return;
   title = args[1];
@@ -165,6 +187,19 @@ void ChangeDirCommand::execute() {
   free(cwd);
 }
 
+void JobsList::addJob(Command* cmd, int pid, bool isStopped) {
+  int next_id;
+  auto it = max_element(jobs.begin(),
+                             jobs.end(),
+                             [](const JobEntry& a,const JobEntry& b) { return a.job_id < b.job_id; });                 
+  if (it == jobs.end()) {
+    next_id = 1;
+  } else {
+      next_id = it->job_id + 1;
+  }
+  jobs.push_back(JobEntry(next_id, cmd, pid));
+}
+
 SmallShell::SmallShell() : title("smash"), job_list(), last_wd() {}
 
 void SmallShell::changeTitle(const string& title) {
@@ -196,18 +231,24 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if (firstWord.compare("pwd") == 0) {
     return new GetCurrDirCommand(cmd_line);
   }
-  else if(firstWord.compare("cd") == 0) {
-    return new ChangeDirCommand(cmd_line);
+  else if(firstWord.compare("jobs") == 0) {
+    cout << "jobs is not implemented" << endl;
   }
-  // if (firstWord.compare("pwd") == 0) {
-  //   return new GetCurrDirCommand(cmd_line);
-  // }
-  // else if (firstWord.compare("showpid") == 0) {
-  //   return new ShowPidCommand(cmd_line);
-  // }
-  // else {
-  //   return new ExternalCommand(cmd_line);
-  // }
+  else if(firstWord.compare("fg") == 0) {
+    cout << "fg is not implemented" << endl;
+  }
+  else if(firstWord.compare("bg") == 0) {
+    cout << "bg is not implemented" << endl;
+  }
+  else if(firstWord.compare("quit") == 0) {
+    cout << "quit is not implemented" << endl;
+  }
+  else if(firstWord.compare("kill") == 0) {
+    cout << "kill is not implemented" << endl;
+  }
+  else {
+    return new ExternalCommand(cmd_line);
+  }
   return nullptr;
 }
 
@@ -218,5 +259,25 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
   Command* cmd = CreateCommand(cmd_line);
-  cmd->execute();
+  if (cmd == nullptr) return;
+  ExternalCommand* ext_cmd = dynamic_cast<ExternalCommand*>(cmd);
+  if (!ext_cmd){
+    cmd->execute();
+    return;
+  }
+  else{
+    pid_t pid = fork();
+    if(pid == 0){
+      ext_cmd->execute();
+    }
+    else{
+      if (ext_cmd->is_background){
+        job_list.addJob(ext_cmd, pid, false);
+      }
+      else{
+        pid_t ret_pid = wait(nullptr);
+        cout << ret_pid << endl;
+      }
+    }
+  }
 }
