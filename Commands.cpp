@@ -129,24 +129,36 @@ void GetCurrDirCommand::execute() {
 }
 
 void ChangeDirCommand::execute() {
+  if (num_of_args < 2){
+    std::string errormessage = "smash error:> \"";
+    errormessage = errormessage + this->original_cmd_line + "\"";
+    perror(errormessage.c_str());
+    return;
+  }
+  if (num_of_args > 2) {
+    perror("smash error: cd: too many arguments");
+    return;
+  }
+
   char* cwd = getcwd(nullptr, 0);
   SmallShell& smash = SmallShell::getInstance();
-
-  if (num_of_args > 2) {
-
-  }
   if (strcmp(args[1], "-") == 0) {
     string new_wd = smash.getLastWD();
     if (new_wd.empty()) {
+      free(cwd);
       perror("smash error: cd: OLDPWD not set");
+      return;
     }
     if (chdir(new_wd.c_str()) != 0) {
-    perror("smash error: chdir failed");
+      free(cwd);
+      perror("smash error: chdir failed");
+      return;
     }
-    smash.setLastWD(cwd);
   }
-  if (chdir(args[1]) != 0) {
+  else if (chdir(args[1]) != 0) {
+    free(cwd);
     perror("smash error: chdir failed");
+    return;
   }
 
   smash.setLastWD(cwd);
@@ -183,6 +195,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   }
   else if (firstWord.compare("pwd") == 0) {
     return new GetCurrDirCommand(cmd_line);
+  }
+  else if(firstWord.compare("cd") == 0) {
+    return new ChangeDirCommand(cmd_line);
   }
   // if (firstWord.compare("pwd") == 0) {
   //   return new GetCurrDirCommand(cmd_line);
