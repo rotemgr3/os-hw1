@@ -85,9 +85,9 @@ class ShowPidCommand : public BuiltInCommand {
 
 class JobsList;
 class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members
 public:
-  QuitCommand(const char* cmd_line, JobsList* jobs);
+  JobsList* jobs;
+  QuitCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), jobs(jobs) {};
   virtual ~QuitCommand() {}
   void execute() override;
 };
@@ -202,6 +202,7 @@ class SmallShell {
   std::string getTitle() const { return title; }
   std::string getLastWD() const { return last_wd; }
   void setLastWD(char* new_lwd);
+  void refreshJobsList();
 };
 
 #endif //SMASH_COMMAND_H_

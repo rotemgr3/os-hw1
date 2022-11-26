@@ -119,15 +119,22 @@ void ExternalCommand::execute() {
   if (is_complex){
     char cmd_line_copy[201];
     strcpy(cmd_line_copy, cmd_line.c_str());
-    char* ext_cmd[2];
-    ext_cmd[0] = strdup("-c");
-    ext_cmd[1] = cmd_line_copy;
+    char* ext_cmd[4];
+    ext_cmd[0] = strdup("bash");
+    ext_cmd[1] = strdup("-c");
+    ext_cmd[2] = cmd_line_copy;
+    ext_cmd[3] = nullptr;
     execv("/bin/bash", ext_cmd);
   }
   else{
+    execv(this->args[0], args);
+    // If failed search in /bin/
     string command = "/bin/" + string(this->args[0]);
     execv(command.c_str(), args);
   }
+  // If failed print error message
+  cout << "Extarnal command did not execute correctly" << endl;
+  exit(0);
 }
 
 ChangePrompt::ChangePrompt(const char* cmd_line) : BuiltInCommand(cmd_line), title("smash") {
@@ -154,11 +161,11 @@ void ChangeDirCommand::execute() {
   if (num_of_args < 2){
     std::string errormessage = "smash error:> \"";
     errormessage = errormessage + this->original_cmd_line + "\"";
-    perror(errormessage.c_str());
+    cout << errormessage << endl;
     return;
   }
   if (num_of_args > 2) {
-    perror("smash error: cd: too many arguments");
+    cerr << "smash error: cd: too many arguments" << endl;
     return;
   }
 
@@ -168,7 +175,7 @@ void ChangeDirCommand::execute() {
     string new_wd = smash.getLastWD();
     if (new_wd.empty()) {
       free(cwd);
-      perror("smash error: cd: OLDPWD not set");
+      cerr << "smash error: cd: OLDPWD not set" << endl;
       return;
     }
     if (chdir(new_wd.c_str()) != 0) {
@@ -185,6 +192,28 @@ void ChangeDirCommand::execute() {
 
   smash.setLastWD(cwd);
   free(cwd);
+}
+
+void QuitCommand::execute() {
+  bool is_kill = false;
+  for (int i = 1; i < num_of_args; i++) {
+    if (strcmp("kill", args[i]) == 0) {
+      is_kill = true;
+    }
+  }
+  if (is_kill) {
+    std::sort(jobs->jobs.begin(), jobs->jobs.end(), 
+      [](const JobsList::JobEntry& a,const JobsList::JobEntry& b) { return a.job_id < b.job_id; });
+    int size = jobs->jobs.size();
+    cout << "smash: sending SIGKILL signal to " << size << " jobs:" << endl;
+    for (int i = 0; i < size; i++) {
+      cout << jobs->jobs[i].pid << ": " << jobs->jobs[i].cmd->original_cmd_line << endl;
+      kill(jobs->jobs[i].pid, 9);
+    }
+  } else {
+      // TODO: implement quit without kill arg
+  }
+  exit(0);
 }
 
 void JobsList::addJob(Command* cmd, int pid, bool isStopped) {
@@ -214,6 +243,17 @@ SmallShell::~SmallShell() {
 // TODO: add your implementation
 }
 
+void SmallShell::refreshJobsList() {
+  auto job = job_list.jobs.begin();
+  while (job != job_list.jobs.end()) {
+    if (waitpid(job->pid, nullptr, WNOHANG) > 0) {
+      job = job_list.jobs.erase(job);
+    } else {
+      job++;
+    }
+  }
+}
+
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
@@ -241,7 +281,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     cout << "bg is not implemented" << endl;
   }
   else if(firstWord.compare("quit") == 0) {
-    cout << "quit is not implemented" << endl;
+    return new QuitCommand(cmd_line, &job_list);
   }
   else if(firstWord.compare("kill") == 0) {
     cout << "kill is not implemented" << endl;
@@ -272,11 +312,11 @@ void SmallShell::executeCommand(const char *cmd_line) {
     }
     else{
       if (ext_cmd->is_background){
+        getInstance().refreshJobsList();
         job_list.addJob(ext_cmd, pid, false);
       }
       else{
-        pid_t ret_pid = wait(nullptr);
-        cout << ret_pid << endl;
+        waitpid(pid, nullptr, 0);
       }
     }
   }
