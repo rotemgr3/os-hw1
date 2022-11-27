@@ -3,9 +3,10 @@
 
 int main(){
     FILE* file = fopen("test.txt","w");
-    for(int i = 0; i < 60; i++){
+    for(int i = 0; i < 20; i++){
         sleep(1);
         fprintf(file, "I'm alive!\n");
+        printf("hi %d!\n", i);
     }
     return 0;
 }

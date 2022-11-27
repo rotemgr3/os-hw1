@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <time.h>
+#include <memory>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -98,18 +99,18 @@ class JobsList {
   class JobEntry {
     public:
       int job_id;
-      Command* cmd;
+      std::shared_ptr<Command> cmd;
       int pid;
       time_t time_started;
       bool is_stopped;
-      JobEntry(int job_id, Command* cmd, int pid) : job_id(job_id), cmd(cmd), pid(pid), time_started(time(0)), is_stopped(false) {}
+      JobEntry(int job_id, std::shared_ptr<Command> cmd, int pid, bool is_stopped = false) : job_id(job_id), cmd(cmd), pid(pid), time_started(time(0)), is_stopped(is_stopped) {}
       JobEntry(const JobEntry &job_entry) = default;
       ~JobEntry() = default;
   };
   std::vector<JobEntry> jobs;
   JobsList() = default;
   ~JobsList() = default;
-  void addJob(Command* cmd, int pid, bool isStopped = false);
+  void addJob(std::shared_ptr<Command> cmd, int pid, bool isStopped = false, int job_id = 0);
   void printJobsList();
   void killAllJobs();
   void removeFinishedJobs();
@@ -117,21 +118,20 @@ class JobsList {
   void removeJobById(int jobId);
   JobEntry * getLastJob(int* lastJobId);
   JobEntry *getLastStoppedJob(int *jobId);
-  // TODO: Add extra methods or modify exisitng ones as needed
 };
 
 class JobsCommand : public BuiltInCommand {
- // TODO: Add your data members
  public:
-  JobsCommand(const char* cmd_line, JobsList* jobs);
+  JobsList* jobs_list;
+  JobsCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), jobs_list(jobs) {}
   virtual ~JobsCommand() {}
   void execute() override;
 };
 
 class ForegroundCommand : public BuiltInCommand {
- // TODO: Add your data members
  public:
-  ForegroundCommand(const char* cmd_line, JobsList* jobs);
+  JobsList* jobs_list;
+  ForegroundCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), jobs_list(jobs) {}
   virtual ~ForegroundCommand() {}
   void execute() override;
 };
@@ -183,11 +183,12 @@ class KillCommand : public BuiltInCommand {
 class SmallShell {
  private:
   std::string title;
-  JobsList job_list;
   std::string last_wd;
   SmallShell();
  public:
-  Command *CreateCommand(const char* cmd_line);
+  JobsList job_list;
+  JobsList::JobEntry* fg_job;
+  std::shared_ptr<Command> CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
   void operator=(SmallShell const&)  = delete; // disable = operator
   static SmallShell& getInstance() // make SmallShell singleton
@@ -202,7 +203,6 @@ class SmallShell {
   std::string getTitle() const { return title; }
   std::string getLastWD() const { return last_wd; }
   void setLastWD(char* new_lwd);
-  void refreshJobsList();
 };
 
 #endif //SMASH_COMMAND_H_
