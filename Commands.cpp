@@ -6,7 +6,8 @@
 #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
-#include  <algorithm>
+#include <algorithm>
+#include <fcntl.h>
 
 using namespace std;
 
@@ -124,13 +125,13 @@ void ExternalCommand::execute() {
     ext_cmd[1] = strdup("-c");
     ext_cmd[2] = cmd_line_copy;
     ext_cmd[3] = nullptr;
-    execv("/bin/bash", ext_cmd);
+    execvp("/bin/bash", ext_cmd);
   }
   else{
-    execv(this->args[0], args);
+    execvp(this->args[0], args);
     // If failed search in /bin/
     string command = "/bin/" + string(this->args[0]);
-    execv(command.c_str(), args);
+    execvp(command.c_str(), args);
   }
   // If failed print error message
   cout << "External command did not execute correctly" << endl;
@@ -248,10 +249,39 @@ void QuitCommand::execute() {
   if (is_kill) {
     SmallShell::getInstance().job_list.killAllJobs();
     SmallShell::getInstance().job_list.removeFinishedJobs();
-  } else {
-      // TODO: implement quit without kill arg
-  }
+  } 
   exit(0);
+}
+
+RedirectionCommand::RedirectionCommand(const char* cmd_line) : 
+  Command(cmd_line) , output_file(), is_append(true) {
+  string type = ">>";
+  auto i = this->cmd_line.find(">>");
+  if (i == string::npos) {
+    is_append = false;
+    type = ">";
+    i = this->cmd_line.find(">");
+  }
+  cmd = SmallShell::getInstance().CreateCommand((this->cmd_line.substr(0, i)).c_str());
+  output_file = _trim(this->cmd_line.substr(i + type.length() , string::npos));
+} 
+
+void RedirectionCommand::execute(){
+  int flag = O_CREAT | O_RDWR;
+  if(this->is_append){
+    flag = flag | O_APPEND;
+  }
+  pid_t pid = fork();
+  if(pid == 0){
+    close(1);
+    int fd = open(this->output_file.c_str(), flag);
+    this->cmd->execute();
+    close(fd);
+    exit(0);
+  }
+  else{
+    waitpid(pid, nullptr, 0);
+  }
 }
 
 void JobsList::addJob(std::shared_ptr<Command> cmd, int pid, bool isStopped, int job_id) {
@@ -382,7 +412,10 @@ shared_ptr<Command> SmallShell::CreateCommand(const char* cmd_line) {
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
-  if (firstWord.compare("chprompt") == 0) {
+  if (cmd_s.find(">>") != string::npos || cmd_s.find(">") != string::npos) {
+    return shared_ptr<RedirectionCommand>(new RedirectionCommand(cmd_line));
+  }
+  else if (firstWord.compare("chprompt") == 0) {
     return shared_ptr<ChangePrompt>(new ChangePrompt(cmd_line));
   }
   else if (firstWord.compare("showpid") == 0) {

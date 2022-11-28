@@ -46,8 +46,10 @@ class PipeCommand : public Command {
 };
 
 class RedirectionCommand : public Command {
- // TODO: Add your data members
  public:
+  std::shared_ptr<Command> cmd;
+  std::string output_file;
+  bool is_append;
   explicit RedirectionCommand(const char* cmd_line);
   virtual ~RedirectionCommand() {}
   void execute() override;
