@@ -239,6 +239,46 @@ void ForegroundCommand::execute() {
   smash.fg_job = nullptr;
 }
 
+void BackgroundCommand::execute() {
+  if (num_of_args > 2) {
+    perror("smash error: bg: invalid arguments");
+    return;
+  }
+
+  int target_id;
+  JobsList::JobEntry* target_job;
+  SmallShell& smash = SmallShell::getInstance();
+  if (num_of_args == 2) {
+    try {
+      target_id = stoi(args[1]);
+    } catch (...) {
+      perror("smash error: bg: invalid arguments");
+      return;
+    }
+    target_job = smash.job_list.getJobById(target_id);
+    if (target_job == nullptr) {
+      string err = "smash error: bg: job-id " + string(args[1]) + " does not exist";
+      perror(err.c_str());
+      return;
+    }
+    else if (target_job->is_stopped == 0) {
+      string err = "smash error: bg: job-id " + string(args[1]) + " is already running in the background";
+      perror(err.c_str());
+      return;
+    }
+  } else {
+      target_job = smash.job_list.getLastStoppedJob(&target_id);
+      if (target_job == nullptr) {
+        perror("smash error: bg: there is no stopped jobs to resume");
+        return;
+      }
+  }
+
+  cout << target_job->cmd->original_cmd_line << " : " << target_job->pid << endl;
+  target_job->is_stopped = false;
+  kill(target_job->pid, SIGCONT);
+}
+
 void QuitCommand::execute() {
   bool is_kill = false;
   for (int i = 1; i < num_of_args; i++) {
@@ -251,6 +291,51 @@ void QuitCommand::execute() {
     SmallShell::getInstance().job_list.removeFinishedJobs();
   } 
   exit(0);
+}
+
+PipeCommand::PipeCommand(const char* cmd_line) : Command(cmd_line), to_cerr(true){
+  string type = "|&";
+  auto i = this->cmd_line.find("|&");
+  if (i == string::npos) {
+    to_cerr = false;
+    type = "|";
+    i = this->cmd_line.find("|");
+  }
+  first_cmd = SmallShell::getInstance().CreateCommand((this->cmd_line.substr(0, i)).c_str());
+  second_cmd = SmallShell::getInstance().CreateCommand(this->cmd_line.substr(i + type.length() , string::npos).c_str());
+} 
+
+void PipeCommand::execute(){
+  int new_pipe[2];
+  int success = pipe(new_pipe);
+  if(success != 0){
+    cout << "smash error:> " + this->original_cmd_line << endl;
+    return;
+  }
+
+  if(fork() == 0){
+    if(to_cerr){
+      dup2(new_pipe[1], 2);
+      close(new_pipe[0]);
+      close(new_pipe[1]);
+    }
+    else{
+      dup2(new_pipe[1], 1);
+      close(new_pipe[0]);
+      close(new_pipe[1]);
+    }
+    this->first_cmd->execute();
+    exit(0);
+  }
+  if(fork() == 0){
+    dup2(new_pipe[0], 0);
+    close(new_pipe[0]);
+    close(new_pipe[1]);
+    this->second_cmd->execute();
+    exit(0);
+  }
+  close(new_pipe[0]);
+  close(new_pipe[1]);
 }
 
 RedirectionCommand::RedirectionCommand(const char* cmd_line) : 
@@ -267,14 +352,14 @@ RedirectionCommand::RedirectionCommand(const char* cmd_line) :
 } 
 
 void RedirectionCommand::execute(){
-  int flag = O_CREAT | O_RDWR;
+  int flag = O_CREAT | O_TRUNC | O_RDWR;
   if(this->is_append){
-    flag = flag | O_APPEND;
+    flag = O_CREAT | O_APPEND | O_RDWR;
   }
   pid_t pid = fork();
   if(pid == 0){
     close(1);
-    int fd = open(this->output_file.c_str(), flag);
+    int fd = open(this->output_file.c_str(), flag, S_IRWXU | S_IRWXO | S_IRWXG);
     this->cmd->execute();
     close(fd);
     exit(0);
@@ -388,7 +473,7 @@ JobsList::JobEntry* JobsList::getLastStoppedJob(int* lastJobId) {
     return nullptr;
   }
   *lastJobId = it->job_id;
-  return &(*it);
+  return getJobById(it->job_id);
 }
 
 SmallShell::SmallShell() : title("smash"), last_wd(), job_list(), fg_job() {}
@@ -415,6 +500,9 @@ shared_ptr<Command> SmallShell::CreateCommand(const char* cmd_line) {
   if (cmd_s.find(">>") != string::npos || cmd_s.find(">") != string::npos) {
     return shared_ptr<RedirectionCommand>(new RedirectionCommand(cmd_line));
   }
+  else if (cmd_s.find("|&") != string::npos || cmd_s.find("|") != string::npos) {
+    return shared_ptr<PipeCommand>(new PipeCommand(cmd_line));
+  }
   else if (firstWord.compare("chprompt") == 0) {
     return shared_ptr<ChangePrompt>(new ChangePrompt(cmd_line));
   }
@@ -431,7 +519,7 @@ shared_ptr<Command> SmallShell::CreateCommand(const char* cmd_line) {
     return shared_ptr<ForegroundCommand>(new ForegroundCommand(cmd_line, &job_list));
   }
   else if(firstWord.compare("bg") == 0) {
-    cout << "bg is not implemented" << endl;
+    return shared_ptr<BackgroundCommand>(new BackgroundCommand(cmd_line, &job_list));
   }
   else if(firstWord.compare("quit") == 0) {
     return shared_ptr<QuitCommand>(new QuitCommand(cmd_line, &job_list));

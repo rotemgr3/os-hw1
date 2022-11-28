@@ -38,7 +38,9 @@ class ExternalCommand : public Command {
 };
 
 class PipeCommand : public Command {
-  // TODO: Add your data members
+  std::shared_ptr<Command> first_cmd;
+  std::shared_ptr<Command> second_cmd;
+  bool to_cerr;
  public:
   PipeCommand(const char* cmd_line);
   virtual ~PipeCommand() {}
@@ -139,9 +141,9 @@ class ForegroundCommand : public BuiltInCommand {
 };
 
 class BackgroundCommand : public BuiltInCommand {
- // TODO: Add your data members
  public:
-  BackgroundCommand(const char* cmd_line, JobsList* jobs);
+  JobsList* jobs_list;
+  BackgroundCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), jobs_list(jobs) {}
   virtual ~BackgroundCommand() {}
   void execute() override;
 };
