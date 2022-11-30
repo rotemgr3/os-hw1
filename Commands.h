@@ -49,7 +49,7 @@ class PipeCommand : public Command {
 
 class RedirectionCommand : public Command {
  public:
-  std::shared_ptr<Command> cmd;
+  std::string cmd;
   std::string output_file;
   bool is_append;
   explicit RedirectionCommand(const char* cmd_line);
@@ -158,28 +158,25 @@ class TimeoutCommand : public BuiltInCommand {
 };
 
 class FareCommand : public BuiltInCommand {
-  /* Optional */
-  // TODO: Add your data members
  public:
-  FareCommand(const char* cmd_line);
+  FareCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
   virtual ~FareCommand() {}
   void execute() override;
+  static int ReplaceSubStrings(std::string& str, const std::string& from, const std::string& to);
 };
 
 class SetcoreCommand : public BuiltInCommand {
-  /* Optional */
-  // TODO: Add your data members
+  int cores;
  public:
-  SetcoreCommand(const char* cmd_line);
+  SetcoreCommand(const char* cmd_line) : BuiltInCommand(cmd_line) , cores(sysconf(_SC_NPROCESSORS_ONLN)){};
   virtual ~SetcoreCommand() {}
   void execute() override;
 };
 
 class KillCommand : public BuiltInCommand {
-  /* Bonus */
- // TODO: Add your data members
  public:
-  KillCommand(const char* cmd_line, JobsList* jobs);
+  JobsList* jobs_list;
+  KillCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), jobs_list(jobs) {}
   virtual ~KillCommand() {}
   void execute() override;
 };

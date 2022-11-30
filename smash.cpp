@@ -20,9 +20,11 @@ int main(int argc, char* argv[]) {
         std::cout << smash.getTitle() << "> ";
         std::string cmd_line;
         std::getline(std::cin, cmd_line);
+        if(cmd_line.compare("") == 0){
+            continue;
+        }
         smash.job_list.removeFinishedJobs();
         smash.executeCommand(cmd_line.c_str());
     }
-    printf("Hello World!");
     return 0;
 }
