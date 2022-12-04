@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <time.h>
+#include <map>
 #include <memory>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
@@ -104,7 +105,7 @@ class JobsList {
     public:
       int job_id;
       std::shared_ptr<Command> cmd;
-      int pid;
+      pid_t pid;
       time_t time_started;
       bool is_stopped;
       JobEntry(int job_id, std::shared_ptr<Command> cmd, int pid, bool is_stopped = false) : job_id(job_id), cmd(cmd), pid(pid), time_started(time(0)), is_stopped(is_stopped) {}
@@ -122,6 +123,15 @@ class JobsList {
   void removeJobById(int jobId);
   JobEntry * getLastJob(int* lastJobId);
   JobEntry *getLastStoppedJob(int *jobId);
+};
+
+class TimedJobsList {
+  std::map<time_t, std::vector<std::shared_ptr<JobsList::JobEntry>>> jobs;
+  public:
+  TimedJobsList() = default;
+  ~TimedJobsList() = default;
+  void addTimedJob(time_t end_time, std::shared_ptr<JobsList::JobEntry> job);
+  void handleAlarm();
 };
 
 class JobsCommand : public BuiltInCommand {
@@ -149,12 +159,11 @@ class BackgroundCommand : public BuiltInCommand {
 };
 
 class TimeoutCommand : public BuiltInCommand {
-/* Optional */
-// TODO: Add your data members
  public:
-  explicit TimeoutCommand(const char* cmd_line);
+  explicit TimeoutCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
   virtual ~TimeoutCommand() {}
-  void execute() override;
+  void execute() {}
+  void timed_execute(std::shared_ptr<Command> cmd_ptr);
 };
 
 class FareCommand : public BuiltInCommand {
@@ -168,7 +177,7 @@ class FareCommand : public BuiltInCommand {
 class SetcoreCommand : public BuiltInCommand {
   int cores;
  public:
-  SetcoreCommand(const char* cmd_line) : BuiltInCommand(cmd_line) , cores(sysconf(_SC_NPROCESSORS_ONLN)){};
+  SetcoreCommand(const char* cmd_line) : BuiltInCommand(cmd_line) , cores(0) {};
   virtual ~SetcoreCommand() {}
   void execute() override;
 };
@@ -188,6 +197,7 @@ class SmallShell {
   SmallShell();
  public:
   JobsList job_list;
+  TimedJobsList timed_jobs;
   JobsList::JobEntry* fg_job;
   std::shared_ptr<Command> CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor

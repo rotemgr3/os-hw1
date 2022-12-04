@@ -1,6 +1,7 @@
 {
     "C_Cpp.errorSquiggles": "Enabled",
     "files.associations": {
+        "*.rmd": "markdown",
         "array": "cpp",
         "*.tcc": "cpp",
         "cctype": "cpp",
@@ -46,6 +47,7 @@
         "memory": "cpp",
         "memory_resource": "cpp",
         "numeric": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "map": "cpp"
     }
 }
